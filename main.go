@@ -22,15 +22,44 @@ func (sa *SimpleArchiver) compressEmpty(data []byte) []byte {
 	return data
 }
 
+func (sa *SimpleArchiver) countRepeating(data []byte) []byte {
+	if len(data) == 0 {
+		return []byte{}
+	}
+
+	buf := make([]byte, 0)
+	current := data[0]
+	count := 1
+
+	for i := 1; i < len(data); i++ {
+		if data[i] == current {
+			count++
+		} else {
+			buf = append(buf, byte(count), current)
+			current = data[i]
+			count = 1
+		}
+	}
+
+	buf = append(buf, byte(count), current)
+
+	return buf
+}
+
 func main() {
 	archiver := NewArchiver("input.txt")
+	tests := []string{"AABBB", "ABC"}
+	for i, input := range tests {
+		r := archiver.countRepeating([]byte(input))
 
-	r1 := archiver.compressEmpty([]byte{})
-	fmt.Printf("Тест 1 (пустой массив): len=%d, data=%v\n", len(r1), r1)
+		fmt.Printf("Тест %d (%s):\n", i+1, input)
+		fmt.Printf("Вход: %s\n", input)
+		fmt.Print("Выход: ")
+		for j := 0; j < len(r); j += 2 {
+			fmt.Printf("%d%c", r[j], r[j+1])
+		}
+		fmt.Println()
+		fmt.Println()
+	}
 
-	r2 := archiver.compressEmpty([]byte("A"))
-	fmt.Printf("Тест 2 (один символ): len=%d, data=%v\n", len(r2), r2)
-
-	r3 := archiver.compressEmpty([]byte{1, 2, 3})
-	fmt.Printf("Тест 3 (несколько символов): len=%d, data=%v\n", len(r3), r3)
 }
