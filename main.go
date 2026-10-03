@@ -103,6 +103,7 @@ func (sa *SimpleArchiver) decompress(data []byte) []byte {
 	}
 
 	var i int
+	var result []byte
 
 	for i < len(data) {
 		control := data[i]
@@ -111,19 +112,26 @@ func (sa *SimpleArchiver) decompress(data []byte) []byte {
 		isCompressed := control&0x80 != 0
 		length := int(control & 0x7F)
 
-		fmt.Printf("Управляющий байт: 0x%02X\n", control)
 		if isCompressed {
-			fmt.Printf("  Тип: сжатая, длина: %d\n\n", length)
+			value := data[i]
 			i++
+
+			fmt.Println("Распаковка: сжатая последовательность")
+			fmt.Printf("Символ '%c' повторяется %d раз\n", value, length)
+
+			for range length {
+				result = append(result, value)
+			}
 		} else {
 			fmt.Printf("  Тип: несжатая, длина: %d\n\n", length)
 			i += length
 		}
 	}
-	return []byte{}
+	return result
 }
 
 func main() {
 	archiver := NewArchiver("input.txt")
-	archiver.decompress([]byte{0x85, 0x41, 0x03, 0x42, 0x43, 0x44})
+	result := archiver.decompress([]byte{0x85, 0x41})
+	fmt.Printf("Результат: %s\n", result)
 }
