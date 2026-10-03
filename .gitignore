@@ -9,6 +9,7 @@
 *.test
 *.out
 /bin/
+/simple-archiver
 
 # Archiver output
 *.sarch

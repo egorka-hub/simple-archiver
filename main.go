@@ -2,17 +2,50 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type SimpleArchiver struct {
 	inputPath  string
 	outputPath string
 	buffer     []byte
+}
+
+type model struct {
+	archiver  *SimpleArchiver
+	state     string
+	inputPath string
+	choices   []string
+	cursor    int
+	err       error
+}
+
+func initialModel() model {
+	return model{
+		archiver: NewArchiver(""),
+		state:    "menu",
+		choices:  []string{"Сжать файл", "Распаковать файл", "Выход"},
+	}
+}
+
+func (m model) Init() tea.Cmd {
+	return nil
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if msg, ok := msg.(tea.KeyMsg); ok && msg.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m model) View() string {
+	return ""
 }
 
 func NewArchiver(inputPath string) *SimpleArchiver {
@@ -295,51 +328,8 @@ func fileSize(path string) (int64, error) {
 }
 
 func main() {
-	archiver := NewArchiver("input.txt")
-
-	inputPath := "test.txt"
-	outputPath := "test.sarch"
-
-	if err := archiver.CompressFile(inputPath, outputPath); err != nil {
+	if _, err := tea.NewProgram(initialModel()).Run(); err != nil {
 		fmt.Println("Ошибка:", err)
 		os.Exit(1)
 	}
-
-	fmt.Printf("Файл успешно сжат: %s -> %s\n", inputPath, outputPath)
-
-	outputDir := "output"
-
-	if err := archiver.DecompressFile(outputPath, outputDir); err != nil {
-		fmt.Println("Ошибка:", err)
-		os.Exit(1)
-	}
-
-	restoredPath := filepath.Join(outputDir, filepath.Base(inputPath))
-	fmt.Printf("Файл успешно распакован: %s -> %s\n\n", outputPath, restoredPath)
-
-	original, err := os.ReadFile(inputPath)
-	if err != nil {
-		fmt.Println("Ошибка:", err)
-		os.Exit(1)
-	}
-
-	restored, err := os.ReadFile(restoredPath)
-	if err != nil {
-		fmt.Println("Ошибка:", err)
-		os.Exit(1)
-	}
-
-	compressedSize, err := fileSize(outputPath)
-	if err != nil {
-		fmt.Println("Ошибка:", err)
-		os.Exit(1)
-	}
-
-	originalSize := int64(len(original))
-	restoredSize := int64(len(restored))
-
-	fmt.Printf("Исходный файл: %s (%d %s)\n", inputPath, originalSize, bytesWord(originalSize))
-	fmt.Printf("Сжатый файл: %s (%d %s)\n", outputPath, compressedSize, bytesWord(compressedSize))
-	fmt.Printf("Распакованный: %s (%d %s)\n", restoredPath, restoredSize, bytesWord(restoredSize))
-	fmt.Printf("Содержимое совпадает: %t\n", bytes.Equal(original, restored))
 }
