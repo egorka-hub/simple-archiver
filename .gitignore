@@ -12,3 +12,4 @@
 
 # Archiver output
 *.sarch
+output/

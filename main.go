@@ -192,6 +192,47 @@ func (sa *SimpleArchiver) CompressFile(inputPath, outputPath string) error {
 	return nil
 }
 
+func (sa *SimpleArchiver) DecompressFile(inputPath, outputDir string) error {
+	inFile, err := os.Open(inputPath)
+	if err != nil {
+		return fmt.Errorf("failed to open input file: %w", err)
+	}
+	defer inFile.Close()
+
+	r := bufio.NewReader(inFile)
+
+	nameLen, err := r.ReadByte()
+	if err != nil {
+		return fmt.Errorf("failed to read file name length: %w", err)
+	}
+	if nameLen == 0 {
+		return fmt.Errorf("invalid archive: empty file name")
+	}
+
+	nameBuf := make([]byte, nameLen)
+	if _, err = io.ReadFull(r, nameBuf); err != nil {
+		return fmt.Errorf("failed to read file name: %w", err)
+	}
+
+	fileName := string(nameBuf)
+	if fileName != filepath.Base(fileName) || fileName == "." || fileName == ".." {
+		return fmt.Errorf("invalid file name in archive: %q", fileName)
+	}
+
+	if err = os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	outputPath := filepath.Join(outputDir, fileName)
+	outFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer outFile.Close()
+
+	return nil
+}
+
 func main() {
 	archiver := NewArchiver("input.txt")
 
@@ -219,4 +260,13 @@ func main() {
 
 	fmt.Printf("Размер исходного файла: %d байт\n", inputInfo.Size())
 	fmt.Printf("Размер сжатого файла: %d байт\n", outputInfo.Size())
+
+	outputDir := "output"
+
+	if err := archiver.DecompressFile(outputPath, outputDir); err != nil {
+		fmt.Println("Ошибка:", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Файл успешно распакован: %s -> %s\n", outputPath, filepath.Join(outputDir, filepath.Base(inputPath)))
 }
