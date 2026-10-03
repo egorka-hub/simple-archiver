@@ -40,20 +40,19 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
-	if !ok {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch m.state {
+		case "menu":
+			return m.updateMenu(msg)
+		case "compress", "decompress":
+			return m.updateInput(msg)
+		}
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+	default:
 		return m, nil
-	}
-
-	if keyMsg.String() == "ctrl+c" {
-		return m, tea.Quit
-	}
-
-	switch m.state {
-	case "menu":
-		return m.updateMenu(keyMsg)
-	case "compress", "decompress":
-		return m.updateInput(keyMsg)
 	}
 	return m, nil
 }
@@ -114,7 +113,7 @@ func (m model) View() string {
 	case "compress", "decompress":
 		return m.viewInput()
 	default:
-		return ""
+		return fmt.Sprintf("Неизвестное состояние: %q\n\nНажмите ctrl+c для выхода\n", m.state)
 	}
 }
 
