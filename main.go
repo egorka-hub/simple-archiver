@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 type SimpleArchiver struct {
 	inputPath  string
@@ -116,17 +119,10 @@ func (sa *SimpleArchiver) decompress(data []byte) []byte {
 			value := data[i]
 			i++
 
-			fmt.Println("Распаковка: сжатая последовательность")
-			fmt.Printf("Символ '%c' повторяется %d раз\n", value, length)
-
 			for range length {
 				result = append(result, value)
 			}
 		} else {
-			fmt.Println("Распаковка: несжатая последовательность")
-			fmt.Printf("Количество символов: %d\n", length)
-			fmt.Printf("Символы: %s\n", data[i:i+length])
-
 			result = append(result, data[i:i+length]...)
 			i += length
 		}
@@ -134,8 +130,43 @@ func (sa *SimpleArchiver) decompress(data []byte) []byte {
 	return result
 }
 
+func (sa *SimpleArchiver) testRoundTrip(num int, name string, data []byte) {
+	compressed := sa.compress(data)
+	decompressed := sa.decompress(compressed)
+
+	fmt.Printf("Тест %d: Сжатие и распаковка %s\n", num, name)
+	if len(data) <= 16 {
+		fmt.Printf("Исходные данные: %v\n", data)
+		fmt.Printf("Сжатые данные:   %v\n", compressed)
+		fmt.Printf("Распакованные:   %v\n", decompressed)
+	} else {
+		fmt.Printf("Исходные данные: %d байт\n", len(data))
+		fmt.Printf("Сжатые данные:   %d байт\n", len(compressed))
+		fmt.Printf("Распакованные:   %d байт\n", len(decompressed))
+	}
+	fmt.Printf("Данные совпадают: %t\n\n", bytes.Equal(data, decompressed))
+}
+
 func main() {
 	archiver := NewArchiver("input.txt")
-	result := archiver.decompress([]byte{0x03, 0x41, 0x42, 0x43})
-	fmt.Printf("Результат: %s\n", result)
+
+	unique127 := make([]byte, 127)
+	for i := range unique127 {
+		unique127[i] = byte(i)
+	}
+
+	unique200 := make([]byte, 200)
+	for i := range unique200 {
+		unique200[i] = byte(i)
+	}
+
+	archiver.testRoundTrip(1, "'AAAAABCD'", []byte("AAAAABCD"))
+	archiver.testRoundTrip(2, "'ABCDE'", []byte("ABCDE"))
+	archiver.testRoundTrip(3, "пустых данных", []byte{})
+	archiver.testRoundTrip(4, "'A'", []byte("A"))
+	archiver.testRoundTrip(5, "'AAAAABCCCCCCDE'", []byte("AAAAABCCCCCCDE"))
+	archiver.testRoundTrip(6, "127 × 'A'", bytes.Repeat([]byte("A"), 127))
+	archiver.testRoundTrip(7, "300 × 'A'", bytes.Repeat([]byte("A"), 300))
+	archiver.testRoundTrip(8, "127 разных байт", unique127)
+	archiver.testRoundTrip(9, "200 разных байт", unique200)
 }
