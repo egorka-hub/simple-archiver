@@ -94,6 +94,18 @@ func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.inputPath == "" {
 			return m, nil
 		}
+
+		archiver := NewArchiver(m.inputPath)
+		if m.state == "compress" {
+			m.err = archiver.CompressFile(m.inputPath, m.inputPath+".sarch")
+		} else {
+			m.err = archiver.DecompressFile(m.inputPath, filepath.Dir(m.inputPath))
+		}
+
+		if m.err == nil {
+			m.inputPath = ""
+			m.state = "menu"
+		}
 	case "backspace":
 		if runes := []rune(m.inputPath); len(runes) > 0 {
 			m.inputPath = string(runes[:len(runes)-1])
