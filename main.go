@@ -123,7 +123,11 @@ func (sa *SimpleArchiver) decompress(data []byte) []byte {
 				result = append(result, value)
 			}
 		} else {
-			fmt.Printf("  Тип: несжатая, длина: %d\n\n", length)
+			fmt.Println("Распаковка: несжатая последовательность")
+			fmt.Printf("Количество символов: %d\n", length)
+			fmt.Printf("Символы: %s\n", data[i:i+length])
+
+			result = append(result, data[i:i+length]...)
 			i += length
 		}
 	}
@@ -132,6 +136,6 @@ func (sa *SimpleArchiver) decompress(data []byte) []byte {
 
 func main() {
 	archiver := NewArchiver("input.txt")
-	result := archiver.decompress([]byte{0x85, 0x41})
+	result := archiver.decompress([]byte{0x03, 0x41, 0x42, 0x43})
 	fmt.Printf("Результат: %s\n", result)
 }
