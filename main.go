@@ -97,22 +97,28 @@ func (sa *SimpleArchiver) compress(data []byte) []byte {
 	return result
 }
 
+func (sa *SimpleArchiver) decompress(data []byte) []byte {
+	if len(data) == 0 {
+		return []byte{}
+	}
+
+	var i int
+
+	for i < len(data) {
+		control := data[i]
+		i++
+		fmt.Printf("Управляющий байт: 0x%02X (%08b)\n", control, control)
+		length := int(control & 127)
+		if control&128 != 0 {
+			i++
+		} else {
+			i += length
+		}
+	}
+	return []byte{}
+}
+
 func main() {
 	archiver := NewArchiver("input.txt")
-
-	tests := []struct {
-		name  string
-		input string
-	}{
-		{"Сжатие", "AAAAA"},
-		{"Сжатие", "ABBBCCCCDE"},
-		{"Сжатие", "ABCDE"},
-	}
-
-	for i, t := range tests {
-		result := archiver.compress([]byte(t.input))
-		fmt.Printf("Тест %d: %s '%s'\n", i+1, t.name, t.input)
-		fmt.Printf("Вход: %s\n", t.input)
-		fmt.Printf("Результат: % X\n\n", result)
-	}
+	archiver.decompress([]byte{0x85, 0x41, 0x03, 0x42, 0x43, 0x44})
 }
