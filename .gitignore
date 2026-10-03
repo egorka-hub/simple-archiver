@@ -9,3 +9,6 @@
 *.test
 *.out
 /bin/
+
+# Archiver output
+*.sarch
