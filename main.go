@@ -58,14 +58,6 @@ func (sa *SimpleArchiver) createControlByte(count int, isCompressed bool) byte {
 	return byte(count)
 }
 
-func (sa *SimpleArchiver) runLength(data []byte, i int) int {
-	count := 1
-	for j := i + 1; j < len(data) && data[j] == data[i] && count < 127; j++ {
-		count++
-	}
-	return count
-}
-
 func (sa *SimpleArchiver) hasRunAhead(data []byte, i int) bool {
 	if i+2 >= len(data) {
 		return false
@@ -74,11 +66,16 @@ func (sa *SimpleArchiver) hasRunAhead(data []byte, i int) bool {
 }
 
 func (sa *SimpleArchiver) compress(data []byte) []byte {
+	if len(sa.compressEmpty(data)) == 0 {
+		return []byte{}
+	}
+
 	result := []byte{}
 	i := 0
 
 	for i < len(data) {
-		n := sa.runLength(data, i)
+		end := min(i+127, len(data))
+		n := int(sa.countRepeating(data[i:end])[0])
 
 		if n >= 4 {
 			result = append(result, sa.createControlByte(n, true), data[i])
@@ -97,7 +94,6 @@ func (sa *SimpleArchiver) compress(data []byte) []byte {
 			i = j
 		}
 	}
-
 	return result
 }
 
@@ -108,9 +104,9 @@ func main() {
 		name  string
 		input string
 	}{
-		{"Несжимаемая последовательность", "ABCDE"},
-		{"Смешанная последовательность", "ABCCDE"},
-		{"Последовательность", "AAAAABCD"},
+		{"Сжатие", "AAAAA"},
+		{"Сжатие", "ABBBCCCCDE"},
+		{"Сжатие", "ABCDE"},
 	}
 
 	for i, t := range tests {
