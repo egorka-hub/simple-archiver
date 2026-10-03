@@ -58,24 +58,65 @@ func (sa *SimpleArchiver) createControlByte(count int, isCompressed bool) byte {
 	return byte(count)
 }
 
+func (sa *SimpleArchiver) runLength(data []byte, i int) int {
+	count := 1
+	for j := i + 1; j < len(data) && data[j] == data[i] && count < 127; j++ {
+		count++
+	}
+	return count
+}
+
+func (sa *SimpleArchiver) hasRunAhead(data []byte, i int) bool {
+	if i+2 >= len(data) {
+		return false
+	}
+	return data[i] == data[i+1] && data[i+1] == data[i+2]
+}
+
+func (sa *SimpleArchiver) compress(data []byte) []byte {
+	result := []byte{}
+	i := 0
+
+	for i < len(data) {
+		n := sa.runLength(data, i)
+
+		if n >= 4 {
+			result = append(result, sa.createControlByte(n, true), data[i])
+			i += n
+		} else {
+			group := []byte{data[i]}
+			j := i + 1
+
+			for j < len(data) && len(group) < 127 && !sa.hasRunAhead(data, j) {
+				group = append(group, data[j])
+				j++
+			}
+
+			result = append(result, sa.createControlByte(len(group), false))
+			result = append(result, group...)
+			i = j
+		}
+	}
+
+	return result
+}
+
 func main() {
 	archiver := NewArchiver("input.txt")
 
 	tests := []struct {
-		name         string
-		count        int
-		isCompressed bool
+		name  string
+		input string
 	}{
-		{"Сжатая последовательность из 5 символов", 5, true},
-		{"Несжатая последовательность из 3 символов", 3, false},
+		{"Несжимаемая последовательность", "ABCDE"},
+		{"Смешанная последовательность", "ABCCDE"},
+		{"Последовательность", "AAAAABCD"},
 	}
 
 	for i, t := range tests {
-		b := archiver.createControlByte(t.count, t.isCompressed)
-		fmt.Printf("Тест %d: %s\n", i+1, t.name)
-		fmt.Printf("Управляющий байт: %08b\n", b)
-		fmt.Printf("Старший бит: %t\n", (b&128) != 0)
-		fmt.Printf("Количество: %d\n\n", b&127)
+		result := archiver.compress([]byte(t.input))
+		fmt.Printf("Тест %d: %s '%s'\n", i+1, t.name, t.input)
+		fmt.Printf("Вход: %s\n", t.input)
+		fmt.Printf("Результат: % X\n\n", result)
 	}
-
 }
