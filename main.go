@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -45,7 +46,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	return ""
+	switch m.state {
+	case "menu":
+		return m.viewMenu()
+	default:
+		return ""
+	}
+}
+
+func (m model) viewMenu() string {
+	var b strings.Builder
+
+	b.WriteString("=== Простой архиватор ===\n\n")
+
+	for i, choice := range m.choices {
+		cursor := " "
+		if m.cursor == i {
+			cursor = ">"
+		}
+		fmt.Fprintf(&b, "%s %s\n", cursor, choice)
+	}
+
+	b.WriteString("\nИспользуйте стрелки для навигации и enter для выбора\n")
+	b.WriteString("Нажмите q для выхода\n")
+
+	return b.String()
 }
 
 func NewArchiver(inputPath string) *SimpleArchiver {
