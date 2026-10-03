@@ -84,6 +84,8 @@ func (m model) View() string {
 	switch m.state {
 	case "menu":
 		return m.viewMenu()
+	case "compress", "decompress":
+		return m.viewInput()
 	default:
 		return ""
 	}
@@ -104,6 +106,27 @@ func (m model) viewMenu() string {
 
 	b.WriteString("\nИспользуйте стрелки для навигации и enter для выбора\n")
 	b.WriteString("Нажмите q для выхода\n")
+
+	return b.String()
+}
+
+func (m model) viewInput() string {
+	var b strings.Builder
+
+	b.WriteString("=== Простой архиватор ===\n\n")
+
+	action := "сжатия"
+	if m.state == "decompress" {
+		action = "распаковки"
+	}
+	fmt.Fprintf(&b, "Введите путь к файлу для %s:\n", action)
+	fmt.Fprintf(&b, "%s_\n", m.inputPath)
+
+	if m.err != nil {
+		fmt.Fprintf(&b, "\nОшибка: %v\n", m.err)
+	}
+
+	b.WriteString("\nEnter для подтверждения, Esc для возврата в меню\n")
 
 	return b.String()
 }
