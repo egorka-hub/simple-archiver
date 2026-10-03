@@ -1,8 +1,11 @@
 # macOS
 .DS_Store
 
-# JetBrains IDE (GoLand)
+# IDE / editors
 .idea/
+.vscode/
+*.swp
+*~
 
 # Go build artifacts
 *.exe
@@ -10,6 +13,15 @@
 *.out
 /bin/
 /simple-archiver
+/archiver
+
+# Go dependencies (only if vendoring is used)
+vendor/
+
+# Temporary files
+tmp/
+*.tmp
+*.log
 
 # Archiver output
 *.sarch
