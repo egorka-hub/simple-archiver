@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -51,6 +52,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case "menu":
 		return m.updateMenu(keyMsg)
+	case "compress", "decompress":
+		return m.updateInput(keyMsg)
 	}
 	return m, nil
 }
@@ -76,6 +79,30 @@ func (m model) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "q", "ctrl+c":
 		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch key := msg.String(); key {
+	case "ctrl+c":
+		return m, tea.Quit
+	case "esc":
+		m.err = nil
+		m.inputPath = ""
+		m.state = "menu"
+	case "enter":
+		if m.inputPath == "" {
+			return m, nil
+		}
+	case "backspace":
+		if runes := []rune(m.inputPath); len(runes) > 0 {
+			m.inputPath = string(runes[:len(runes)-1])
+		}
+	default:
+		if utf8.RuneCountInString(key) == 1 {
+			m.inputPath += key
+		}
 	}
 	return m, nil
 }
