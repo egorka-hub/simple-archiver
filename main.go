@@ -39,7 +39,42 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok && msg.String() == "ctrl+c" {
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return m, nil
+	}
+
+	if keyMsg.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+
+	switch m.state {
+	case "menu":
+		return m.updateMenu(keyMsg)
+	}
+	return m, nil
+}
+
+func (m model) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case "down", "j":
+		if m.cursor < len(m.choices)-1 {
+			m.cursor++
+		}
+	case "enter":
+		switch m.cursor {
+		case 0:
+			m.state = "compress"
+		case 1:
+			m.state = "decompress"
+		case 2:
+			return m, tea.Quit
+		}
+	case "q", "ctrl+c":
 		return m, tea.Quit
 	}
 	return m, nil
