@@ -1,8 +1,10 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
 )
 
 type SimpleArchiver struct {
@@ -130,43 +132,51 @@ func (sa *SimpleArchiver) decompress(data []byte) []byte {
 	return result
 }
 
-func (sa *SimpleArchiver) testRoundTrip(num int, name string, data []byte) {
-	compressed := sa.compress(data)
-	decompressed := sa.decompress(compressed)
-
-	fmt.Printf("Тест %d: Сжатие и распаковка %s\n", num, name)
-	if len(data) <= 16 {
-		fmt.Printf("Исходные данные: %v\n", data)
-		fmt.Printf("Сжатые данные:   %v\n", compressed)
-		fmt.Printf("Распакованные:   %v\n", decompressed)
-	} else {
-		fmt.Printf("Исходные данные: %d байт\n", len(data))
-		fmt.Printf("Сжатые данные:   %d байт\n", len(compressed))
-		fmt.Printf("Распакованные:   %d байт\n", len(decompressed))
+func (sa *SimpleArchiver) CompressFile(inputPath, outputPath string) error {
+	inFile, err := os.Open(inputPath)
+	if err != nil {
+		return fmt.Errorf("failed to open input file: %w", err)
 	}
-	fmt.Printf("Данные совпадают: %t\n\n", bytes.Equal(data, decompressed))
+	defer inFile.Close()
+
+	outFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer outFile.Close()
+
+	fileName := filepath.Base(inputPath)
+	if len(fileName) > 255 {
+		return fmt.Errorf("file name is too long (%d bytes, max 255): %s", len(fileName), fileName)
+	}
+
+	r := bufio.NewReader(inFile)
+	w := bufio.NewWriter(outFile)
+	defer w.Flush()
+
+	_ = r
+
+	if err = w.WriteByte(byte(len(fileName))); err != nil {
+		return fmt.Errorf("failed to write file name length: %w", err)
+	}
+
+	if _, err = w.WriteString(fileName); err != nil {
+		return fmt.Errorf("failed to write file name: %w", err)
+	}
+
+	return nil
 }
 
 func main() {
 	archiver := NewArchiver("input.txt")
 
-	unique127 := make([]byte, 127)
-	for i := range unique127 {
-		unique127[i] = byte(i)
+	inputPath := "test.txt"
+	outputPath := "test.sarch"
+
+	if err := archiver.CompressFile(inputPath, outputPath); err != nil {
+		fmt.Println("Ошибка:", err)
+		os.Exit(1)
 	}
 
-	unique200 := make([]byte, 200)
-	for i := range unique200 {
-		unique200[i] = byte(i)
-	}
-
-	archiver.testRoundTrip(1, "'AAAAABCD'", []byte("AAAAABCD"))
-	archiver.testRoundTrip(2, "'ABCDE'", []byte("ABCDE"))
-	archiver.testRoundTrip(3, "пустых данных", []byte{})
-	archiver.testRoundTrip(4, "'A'", []byte("A"))
-	archiver.testRoundTrip(5, "'AAAAABCCCCCCDE'", []byte("AAAAABCCCCCCDE"))
-	archiver.testRoundTrip(6, "127 × 'A'", bytes.Repeat([]byte("A"), 127))
-	archiver.testRoundTrip(7, "300 × 'A'", bytes.Repeat([]byte("A"), 300))
-	archiver.testRoundTrip(8, "127 разных байт", unique127)
-	archiver.testRoundTrip(9, "200 разных байт", unique200)
+	fmt.Printf("Файл успешно сжат: %s -> %s\n", inputPath, outputPath)
 }
