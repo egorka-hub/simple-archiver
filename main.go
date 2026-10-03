@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -119,6 +120,9 @@ func (sa *SimpleArchiver) decompress(data []byte) []byte {
 		length := int(control & 0x7F)
 
 		if isCompressed {
+			if i >= len(data) {
+				return nil
+			}
 			value := data[i]
 			i++
 
@@ -126,6 +130,9 @@ func (sa *SimpleArchiver) decompress(data []byte) []byte {
 				result = append(result, value)
 			}
 		} else {
+			if i+length > len(data) {
+				return nil
+			}
 			result = append(result, data[i:i+length]...)
 			i += length
 		}
@@ -230,7 +237,61 @@ func (sa *SimpleArchiver) DecompressFile(inputPath, outputDir string) error {
 	}
 	defer outFile.Close()
 
+	w := bufio.NewWriter(outFile)
+	defer w.Flush()
+
+	sizeBuf := make([]byte, 2)
+	blockBuf := make([]byte, 1<<16)
+
+	for {
+		_, err := io.ReadFull(r, sizeBuf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read block size: %w", err)
+		}
+
+		blockSize := uint16(sizeBuf[0])<<8 | uint16(sizeBuf[1])
+		block := blockBuf[:blockSize]
+
+		if _, err = io.ReadFull(r, block); err != nil {
+			return fmt.Errorf("failed to read compressed block: %w", err)
+		}
+
+		decompressed := sa.decompress(block)
+		if decompressed == nil {
+			return fmt.Errorf("failed to decompress block: corrupted data")
+		}
+
+		if _, err = w.Write(decompressed); err != nil {
+			return fmt.Errorf("failed to write decompressed block: %w", err)
+		}
+	}
+
 	return nil
+}
+
+func bytesWord(n int64) string {
+	if n%100 >= 11 && n%100 <= 14 {
+		return "байт"
+	}
+	switch n % 10 {
+	case 1:
+		return "байт"
+	case 2, 3, 4:
+		return "байта"
+	default:
+		return "байт"
+	}
+}
+
+func fileSize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
 }
 
 func main() {
@@ -246,21 +307,6 @@ func main() {
 
 	fmt.Printf("Файл успешно сжат: %s -> %s\n", inputPath, outputPath)
 
-	inputInfo, err := os.Stat(inputPath)
-	if err != nil {
-		fmt.Println("Ошибка:", err)
-		os.Exit(1)
-	}
-
-	outputInfo, err := os.Stat(outputPath)
-	if err != nil {
-		fmt.Println("Ошибка:", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Размер исходного файла: %d байт\n", inputInfo.Size())
-	fmt.Printf("Размер сжатого файла: %d байт\n", outputInfo.Size())
-
 	outputDir := "output"
 
 	if err := archiver.DecompressFile(outputPath, outputDir); err != nil {
@@ -268,5 +314,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Файл успешно распакован: %s -> %s\n", outputPath, filepath.Join(outputDir, filepath.Base(inputPath)))
+	restoredPath := filepath.Join(outputDir, filepath.Base(inputPath))
+	fmt.Printf("Файл успешно распакован: %s -> %s\n\n", outputPath, restoredPath)
+
+	original, err := os.ReadFile(inputPath)
+	if err != nil {
+		fmt.Println("Ошибка:", err)
+		os.Exit(1)
+	}
+
+	restored, err := os.ReadFile(restoredPath)
+	if err != nil {
+		fmt.Println("Ошибка:", err)
+		os.Exit(1)
+	}
+
+	compressedSize, err := fileSize(outputPath)
+	if err != nil {
+		fmt.Println("Ошибка:", err)
+		os.Exit(1)
+	}
+
+	originalSize := int64(len(original))
+	restoredSize := int64(len(restored))
+
+	fmt.Printf("Исходный файл: %s (%d %s)\n", inputPath, originalSize, bytesWord(originalSize))
+	fmt.Printf("Сжатый файл: %s (%d %s)\n", outputPath, compressedSize, bytesWord(compressedSize))
+	fmt.Printf("Распакованный: %s (%d %s)\n", restoredPath, restoredSize, bytesWord(restoredSize))
+	fmt.Printf("Содержимое совпадает: %t\n", bytes.Equal(original, restored))
 }
