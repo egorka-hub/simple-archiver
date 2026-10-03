@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -154,14 +155,38 @@ func (sa *SimpleArchiver) CompressFile(inputPath, outputPath string) error {
 	w := bufio.NewWriter(outFile)
 	defer w.Flush()
 
-	_ = r
-
 	if err = w.WriteByte(byte(len(fileName))); err != nil {
 		return fmt.Errorf("failed to write file name length: %w", err)
 	}
 
 	if _, err = w.WriteString(fileName); err != nil {
 		return fmt.Errorf("failed to write file name: %w", err)
+	}
+
+	for {
+		n, err := r.Read(sa.buffer)
+		if n > 0 {
+			compressed := sa.compress(sa.buffer[:n])
+			blockSize := len(compressed)
+
+			if err := w.WriteByte(byte(blockSize >> 8)); err != nil {
+				return fmt.Errorf("failed to write block size: %w", err)
+			}
+			if err := w.WriteByte(byte(blockSize)); err != nil {
+				return fmt.Errorf("failed to write block size: %w", err)
+			}
+
+			if _, err := w.Write(compressed); err != nil {
+				return fmt.Errorf("failed to write compressed block: %w", err)
+			}
+		}
+
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read input file: %w", err)
+		}
 	}
 
 	return nil
@@ -179,4 +204,19 @@ func main() {
 	}
 
 	fmt.Printf("Файл успешно сжат: %s -> %s\n", inputPath, outputPath)
+
+	inputInfo, err := os.Stat(inputPath)
+	if err != nil {
+		fmt.Println("Ошибка:", err)
+		os.Exit(1)
+	}
+
+	outputInfo, err := os.Stat(outputPath)
+	if err != nil {
+		fmt.Println("Ошибка:", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Размер исходного файла: %d байт\n", inputInfo.Size())
+	fmt.Printf("Размер сжатого файла: %d байт\n", outputInfo.Size())
 }
